@@ -61,9 +61,9 @@ async fn update_entry(
 }
 
 #[derive(Serialize)]
-struct ChatCompletionRequest {
-    model: String,
-    messages: Vec<Message>,
+struct SummarizeRequest {
+    input_text: String,
+    max_length: u64,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -73,30 +73,25 @@ struct Message {
 }
 
 #[derive(Deserialize)]
-struct ChatCompletionChoice {
-    message: Message,
+struct SummarizeResponse {
+    summary: String,
 }
 
-#[derive(Deserialize)]
-struct ChatCompletionResponse {
-    choices: Vec<ChatCompletionChoice>,
-}
-
-async fn request_openai_chat_completion(
+async fn request_ai_summarization(
     base_url: &str,
     api_key: &str,
     model: &str,
-    messages: Vec<Message>,
+    input: String,
 ) -> std::result::Result<String, Box<dyn std::error::Error>> {
-    console_log!("request_openai_chat_completion");
+    console_log!("request_ai_summarization");
     let client = reqwest::Client::new();
-    let request_body = ChatCompletionRequest {
-        model: model.to_string(),
-        messages,
+    let request_body = SummarizeRequest {
+        input_text: input,
+        max_length: 512,
     };
 
     let response = client
-        .post(format!("{}/v1/chat/completions", base_url))
+        .post(format!("{}/run/{}", base_url, model))
         .header(AUTHORIZATION, format!("Bearer {}", api_key))
         .header(CONTENT_TYPE, "application/json")
         .json(&request_body)
@@ -104,12 +99,12 @@ async fn request_openai_chat_completion(
         .await?;
 
     if response.status().is_success() {
-        console_log!("request_openai_chat_completion success");
-        let completion_response: ChatCompletionResponse = response.json().await?;
-        Ok(completion_response.choices[0].message.content.clone())
+        console_log!("request_ai_summarization success");
+        let summarize_response: SummarizeResponse = response.json().await?;
+        Ok(summarize_response.summary)
     } else {
         let error_message = response.text().await?;
-        console_log!("request_openai_chat_completion error: {}", error_message);
+        console_log!("request_ai_summarization error: {}", error_message);
         Err(format!("Error: {:?}", error_message).into())
     }
 }
@@ -123,7 +118,7 @@ struct Miniflux {
 }
 
 #[derive(Debug)]
-struct OpenAi {
+struct CloudflareAi {
     url: String,
     token: String,
     model: String,
@@ -132,7 +127,7 @@ struct OpenAi {
 #[derive(Debug)]
 struct Config {
     miniflux: Miniflux,
-    openai: OpenAi,
+    cloudflare_ai: CloudflareAi,
 }
 
 async fn generate_and_update_entry(
@@ -146,23 +141,17 @@ async fn generate_and_update_entry(
         console_log!("skipping entry due to empty content or short content length");
         return Ok(());
     }
-    let messages = vec![
-        Message {
-            role: "system".to_string(),
-            content: "You are an experienced and knowledgeable internet blogger that writes short and easy-to-read summaries for articles from various RSS feeds. Please summarize the content of the article in 250 words or less. Format your output in CommonMark compliant markdown. Do not give any extra comments, headers, or prefix. Only return the actual summary text. Similar to the blurbs on the back of books, highlight any aspects of the articles that may be of interest and grab the attention to any readers perusing.".to_string(),
-        },
-        Message {
-            role: "user".to_string(),
-            content: format!("The following is the article:\n---\nTitle: {}\nURL: {}\nContent: {}", &entry.title, &entry.url, &entry.content),
-        },
-    ];
+    let input = format!(
+        "Title: {}\nURL: {}\nContent: {}",
+        &entry.title, &entry.url, &entry.content
+    );
 
     // Generate summary
-    if let Ok(summary) = request_openai_chat_completion(
-        &config.openai.url,
-        &config.openai.token,
-        &config.openai.model,
-        messages,
+    if let Ok(summary) = request_ai_summarization(
+        &config.cloudflare_ai.url,
+        &config.cloudflare_ai.token,
+        &config.cloudflare_ai.model,
+        input,
     )
     .await
     {
@@ -205,10 +194,10 @@ fn handle_options() -> Result<Response> {
 pub async fn scheduled(_event: ScheduledEvent, env: Env, _ctx: ScheduleContext) {
     console_log!("scheduled");
     let config = &Config {
-        openai: OpenAi {
-            url: env.secret("OPENAI_URL").unwrap().to_string(),
-            token: env.secret("OPENAI_TOKEN").unwrap().to_string(),
-            model: env.var("OPENAI_MODEL").unwrap().to_string(),
+        cloudflare_ai: CloudflareAi {
+            url: env.secret("CF_AI_URL").unwrap().to_string(),
+            token: env.secret("CF_AI_TOKEN").unwrap().to_string(),
+            model: env.var("CF_AI_MODEL").unwrap().to_string(),
         },
         miniflux: Miniflux {
             url: env.secret("MINIFLUX_URL").unwrap().to_string(),
@@ -277,10 +266,10 @@ async fn fetch(mut req: Request, env: Env, _ctx: Context) -> Result<Response> {
     console_log!("is post");
 
     let config = &Config {
-        openai: OpenAi {
-            url: env.secret("OPENAI_URL").unwrap().to_string(),
-            token: env.secret("OPENAI_TOKEN").unwrap().to_string(),
-            model: env.var("OPENAI_MODEL").unwrap().to_string(),
+        cloudflare_ai: CloudflareAi {
+            url: env.secret("CF_AI_URL").unwrap().to_string(),
+            token: env.secret("CF_AI_TOKEN").unwrap().to_string(),
+            model: env.var("CF_AI_MODEL").unwrap().to_string(),
         },
         miniflux: Miniflux {
             url: env.secret("MINIFLUX_URL").unwrap().to_string(),

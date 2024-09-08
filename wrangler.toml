@@ -13,4 +13,4 @@ command = "cargo install -q worker-build && worker-build --release"
 crons = ["*/5 * * * *"]
 
 [vars]
-OPENAI_MODEL = "@cf/qwen/qwen1.5-14b-chat-awq"
+CF_AI_MODEL = "@cf/facebook/bart-large-cnn"

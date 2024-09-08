@@ -1,6 +1,6 @@
 # Miniflux AI Summarizer
 
-This Cloudflare Workers tool automatically adds AI-generated summaries to articles in your Miniflux RSS reader. The summaries are generated using the OpenAI API and appended to articles in a user-friendly format.
+This Cloudflare Workers tool automatically adds AI-generated summaries to articles in your Miniflux RSS reader. The summaries are generated using the Cloudflare AI API and appended to articles in a user-friendly format.
 
 ## Features
 
@@ -16,7 +16,7 @@ This Cloudflare Workers tool automatically adds AI-generated summaries to articl
 
 - [Rust](https://www.rust-lang.org/tools/install) installed
 - A Miniflux instance with API access
-- An OpenAI account with access to the model endpoint
+- A Cloudflare AI account with access to the model endpoint
 - A Cloudflare account
 
 ### Installation
@@ -74,14 +74,14 @@ npx wrangler secret put SECRET_NAME
 - `MINIFLUX_URL`: Your Miniflux instance URL.
 - `MINIFLUX_USERNAME`: Your Miniflux username.
 - `MINIFLUX_PASSWORD`: Your Miniflux password.
-- `OPENAI_URL`: The endpoint for the OpenAI API.
-- `OPENAI_TOKEN`: Your OpenAI API token.
+- `CF_AI_URL`: The endpoint for the Cloudflare AI API (should be in the form of `https://api.cloudflare.com/client/v4/accounts/{account_id}/ai`).
+- `CF_AI_TOKEN`: Your Cloudflare AI API token.
 
 #### Environment Variables
 
 These environment variables can be set in the `wrangler.toml` file under the `[vars]` section:
 
-- `OPENAI_MODEL`: The model ID to use for generating summaries. We recommend using the `@cf/qwen/qwen1.5-14b-chat-awq` model for best results.
+- `CF_AI_MODEL`: The model ID to use for generating summaries. We recommend using the `@cf/qwen/qwen1.5-14b-chat-awq` model for best results.
 
 ### Usage
 
