@@ -142,7 +142,7 @@ async fn generate_and_update_entry(
     console_log!("entry id: {}", entry.id);
     console_log!("entry title: {}", entry.title);
     console_log!("entry url: {}", entry.url);
-    if entry.content.trim().is_empty() || entry.content.len() < 500 {
+    if entry.content.trim().is_empty() || entry.content.len() < 800 {
         console_log!("skipping entry due to empty content or short content length");
         return Ok(());
     }
