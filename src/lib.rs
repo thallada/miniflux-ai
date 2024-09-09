@@ -176,10 +176,10 @@ async fn generate_and_update_entry(
     console_log!("entry id: {}", entry.id);
     console_log!("entry title: {}", entry.title);
     console_log!("entry url: {}", entry.url);
-    let mut content = entry.content;
+    let mut content = entry.content.clone();
     if content.trim().is_empty() || content.len() < 800 {
         console_log!("entry content empty or short, fetching original content");
-        if let Ok(original_content) = fetch_content(
+        if let Ok(source_content) = fetch_content(
             &config.miniflux.url,
             &config.miniflux.username,
             &config.miniflux.password,
@@ -187,13 +187,16 @@ async fn generate_and_update_entry(
         )
         .await
         {
-            if original_content.trim().is_empty() || original_content.len() < 800 {
+            if source_content.trim().is_empty() || source_content.len() < 800 {
                 console_log!(
                     "skipping entry due to empty original content or short content length"
                 );
                 return Ok(());
             }
-            content = original_content;
+            content = format!(
+                "<details><summary>Original content</summary>{}</details><br />{}",
+                &entry.content, source_content
+            );
         } else {
             console_log!("skipping entry due to failure to retrieve original content");
             return Ok(());
