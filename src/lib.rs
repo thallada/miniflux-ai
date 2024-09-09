@@ -73,8 +73,13 @@ struct Message {
 }
 
 #[derive(Deserialize)]
-struct SummarizeResponse {
+struct SummarizeResult {
     summary: String,
+}
+
+#[derive(Deserialize)]
+struct SummarizeResponse {
+    result: SummarizeResult,
 }
 
 async fn request_ai_summarization(
@@ -101,7 +106,7 @@ async fn request_ai_summarization(
     if response.status().is_success() {
         console_log!("request_ai_summarization success");
         let summarize_response: SummarizeResponse = response.json().await?;
-        Ok(summarize_response.summary)
+        Ok(summarize_response.result.summary)
     } else {
         let error_message = response.text().await?;
         console_log!("request_ai_summarization error: {}", error_message);
