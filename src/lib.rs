@@ -27,6 +27,11 @@ struct UpdateRequest {
     content: String,
 }
 
+#[derive(Deserialize)]
+struct FetchContentResponse {
+    content: String,
+}
+
 async fn update_entry(
     base_url: &str,
     username: &str,
@@ -45,7 +50,7 @@ async fn update_entry(
     let update_request = UpdateRequest {
         content: content.to_string(),
     };
-    console_log!("created update_request");
+    console_log!("created update_entry content");
 
     client
         .put(&url)
@@ -58,6 +63,35 @@ async fn update_entry(
     console_log!("updated entry in miniflux");
 
     Ok(())
+}
+
+async fn fetch_content(
+    base_url: &str,
+    username: &str,
+    password: &str,
+    id: u64,
+) -> std::result::Result<String, Box<dyn std::error::Error>> {
+    let client = reqwest::Client::new();
+
+    let auth = format!(
+        "Basic {}",
+        STANDARD.encode(format!("{}:{}", username, password))
+    );
+
+    let url = format!("{}/v1/entries/{}/fetch-content", base_url, id);
+    console_log!("created fetch_content request");
+
+    let response = client
+        .get(&url)
+        .header(AUTHORIZATION, auth)
+        .send()
+        .await?
+        .error_for_status()?;
+    console_log!("received original entry content");
+    let content: FetchContentResponse = response.json().await?;
+    console_log!("original content: {}", &content.content);
+
+    Ok(content.content)
 }
 
 #[derive(Serialize)]
@@ -142,11 +176,30 @@ async fn generate_and_update_entry(
     console_log!("entry id: {}", entry.id);
     console_log!("entry title: {}", entry.title);
     console_log!("entry url: {}", entry.url);
-    if entry.content.trim().is_empty() || entry.content.len() < 800 {
-        console_log!("skipping entry due to empty content or short content length");
-        return Ok(());
+    let mut content = entry.content;
+    if content.trim().is_empty() || content.len() < 800 {
+        console_log!("entry content empty or short, fetching original content");
+        if let Ok(original_content) = fetch_content(
+            &config.miniflux.url,
+            &config.miniflux.username,
+            &config.miniflux.password,
+            entry.id,
+        )
+        .await
+        {
+            if original_content.trim().is_empty() || original_content.len() < 800 {
+                console_log!(
+                    "skipping entry due to empty original content or short content length"
+                );
+                return Ok(());
+            }
+            content = original_content;
+        } else {
+            console_log!("skipping entry due to failure to retrieve original content");
+            return Ok(());
+        }
     }
-    let input = format!("{}\n\n{}", &entry.title, &entry.content);
+    let input = format!("{}\n\n{}", &entry.title, content);
 
     // Generate summary
     if let Ok(summary) = request_ai_summarization(
@@ -162,7 +215,7 @@ async fn generate_and_update_entry(
             let updated_content = format!(
                 "<div class=\"ai-summary\"><h4>✨ AI Summary</h4>{}</div><hr><br />{}",
                 markdown::to_html(&summary),
-                &entry.content
+                content
             );
 
             // Update the entry
