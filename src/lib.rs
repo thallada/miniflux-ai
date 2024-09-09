@@ -146,10 +146,7 @@ async fn generate_and_update_entry(
         console_log!("skipping entry due to empty content or short content length");
         return Ok(());
     }
-    let input = format!(
-        "Title: {}\nURL: {}\nContent: {}",
-        &entry.title, &entry.url, &entry.content
-    );
+    let input = format!("{}\n\n{}", &entry.title, &entry.content);
 
     // Generate summary
     if let Ok(summary) = request_ai_summarization(
