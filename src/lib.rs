@@ -126,7 +126,7 @@ async fn request_ai_summarization(
     let client = reqwest::Client::new();
     let request_body = SummarizeRequest {
         input_text: input,
-        max_length: 1024,
+        max_length: 2048,
     };
 
     let response = client
