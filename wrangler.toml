@@ -10,7 +10,7 @@ id = "<insert-your-namespace-id>"
 command = "cargo install -q worker-build && worker-build --release"
 
 [triggers]
-crons = ["*/5 * * * *"]
+crons = ["*/15 * * * *"]
 
 [vars]
 CF_AI_MODEL = "@cf/facebook/bart-large-cnn"
