@@ -94,11 +94,11 @@ async fn fetch_content(
     Ok(content.content)
 }
 
-#[derive(Serialize)]
-struct SummarizeRequest {
-    input_text: String,
-    max_length: u64,
-}
+// #[derive(Serialize)]
+// struct SummarizeRequest {
+//     input_text: String,
+//     max_length: u64,
+// }
 
 #[derive(Serialize, Deserialize)]
 struct Message {
@@ -106,27 +106,38 @@ struct Message {
     content: String,
 }
 
-#[derive(Deserialize)]
-struct SummarizeResult {
-    summary: String,
+// #[derive(Deserialize)]
+// struct SummarizeResult {
+//     summary: String,
+// }
+//
+// #[derive(Deserialize)]
+// struct SummarizeResponse {
+//     result: SummarizeResult,
+// }
+
+#[derive(Serialize)]
+struct AIChatRequest {
+    messages: Vec<Message>,
+    max_tokens: u64,
 }
 
-#[derive(Deserialize)]
-struct SummarizeResponse {
-    result: SummarizeResult,
+#[derive(Serialize, Deserialize)]
+struct AIChatResponse {
+    response: String,
 }
 
 async fn request_ai_summarization(
     base_url: &str,
     api_key: &str,
     model: &str,
-    input: String,
+    messages: Vec<Message>,
 ) -> std::result::Result<String, Box<dyn std::error::Error>> {
     console_log!("request_ai_summarization");
     let client = reqwest::Client::new();
-    let request_body = SummarizeRequest {
-        input_text: input,
-        max_length: 2048,
+    let request_body = AIChatRequest {
+        messages,
+        max_tokens: 1024,
     };
 
     let response = client
@@ -139,8 +150,12 @@ async fn request_ai_summarization(
 
     if response.status().is_success() {
         console_log!("request_ai_summarization success");
-        let summarize_response: SummarizeResponse = response.json().await?;
-        Ok(summarize_response.result.summary)
+        let summarize_response: AIChatResponse = response.json().await?;
+        console_log!(
+            "request_ai_summarization response: {}",
+            summarize_response.response
+        );
+        Ok(summarize_response.response)
     } else {
         let error_message = response.text().await?;
         console_log!("request_ai_summarization error: {}", error_message);
@@ -202,14 +217,23 @@ async fn generate_and_update_entry(
             return Ok(());
         }
     }
-    let input = format!("{}\n\n{}", &entry.title, content);
 
-    // Generate summary
+    let messages = vec![
+        Message {
+            role: "system".to_string(),
+            content: "You are an experienced and knowledgeable internet blogger that writes short and easy-to-read summaries for articles from various RSS feeds. Please summarize the content of the article in 1000 words or less. Format your output in CommonMark compliant markdown. Do not give any extra comments, headers, or prefix. Only return the actual summary text. Similar to the blurbs on the back of books, highlight any aspects of the articles that may be of interest and grab the attention to any readers perusing.".to_string(),
+        },
+        Message {
+            role: "user".to_string(),
+            content: format!("{}\n\n{}", &entry.title, &entry.content),
+        },
+    ];
+
     if let Ok(summary) = request_ai_summarization(
         &config.cloudflare_ai.url,
         &config.cloudflare_ai.token,
         &config.cloudflare_ai.model,
-        input,
+        messages,
     )
     .await
     {
