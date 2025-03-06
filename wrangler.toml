@@ -12,5 +12,9 @@ command = "cargo install -q worker-build && worker-build --release"
 [triggers]
 crons = ["*/15 * * * *"]
 
+[observability]
+enabled = true
+head_sampling_rate = 1 # optional. default = 1.
+
 [vars]
 CF_AI_MODEL = "@cf/facebook/bart-large-cnn"
